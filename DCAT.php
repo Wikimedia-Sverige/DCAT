@@ -42,7 +42,7 @@ function validateConfig( array $config ) {
 	}
 	if ( $config['dumps-enabled'] ) {
 		array_push( $top, "dump-info" );
-		$sub["dump-info"] = array( "accessURL", "mediatype", "license" );
+		$sub["dump-info"] = array( "accessURL", "mediatype", "compression", "license" );
 	}
 
 	// Test
@@ -194,55 +194,70 @@ function writeDistribution( XMLWriter $xml, array $data, $distribId, $prefix, $d
 	$ids = array();
 
 	$allowedMediatypes = $data['config']["$prefix-info"]['mediatype'];
-	foreach ( $allowedMediatypes as $format => $mediatype ) {
-		// handle missing (and BETA) dump files
-		if ( !is_null( $dumpDate ) and !array_key_exists( $format, $data['dumps'][$dumpDate] ) ) {
-			continue;
-		}
+	$allowedCompressiontypes = array( '' => '' );  // dummy array for non-dumps
+	if ( !is_null( $dumpDate ) ){
+		$allowedCompressiontypes = $data['config']["$prefix-info"]['compression'];
+	}
 
-		$id = $data['config']['uri'] . '#' . $distribId . $dumpDate . $format;
-		array_push( $ids, $id );
-
-		$xml->startElementNS( 'rdf', 'Description', null );
-		$xml->writeAttributeNS( 'rdf', 'about', null, $id );
-
-		$xml->startElementNS( 'rdf', 'type', null );
-		$xml->writeAttributeNS( 'rdf', 'resource', null,
-			'http://www.w3.org/ns/dcat#Distribution' );
-		$xml->endElement();
-
-		$xml->startElementNS( 'dcterms', 'license', null );
-		$xml->writeAttributeNS( 'rdf', 'resource', null,
-			$data['config']["$prefix-info"]['license'] );
-		$xml->endElement();
-
-		if ( is_null( $dumpDate ) ) {
-			$xml->startElementNS( 'dcat', 'accessURL', null );
-			$xml->writeAttributeNS( 'rdf', 'resource', null,
-				$data['config']["$prefix-info"]['accessURL'] );
-			$xml->endElement();
-		} else {
-			dumpDistributionExtras( $xml, $data, $dumpDate, $format );
-		}
-
-		$xml->writeElementNS( 'dcterms', 'format', null, $mediatype );
-
-		// add description in each language
-		foreach ( $data['i18n'] as $langCode => $langData ) {
-			if ( array_key_exists( "distribution-$prefix-description", $langData ) ) {
-				$formatDescription = str_replace(
-					'$1',
-					$format,
-					$langData["distribution-$prefix-description"]
-				);
-				$xml->startElementNS( 'dcterms', 'description', null );
-				$xml->writeAttributeNS( 'xml', 'lang', null, $langCode );
-				$xml->text( $formatDescription );
-				$xml->endElement();
+	foreach ( $allowedCompressiontypes as $compression => $compressiontype ) {
+		foreach ( $allowedMediatypes as $format => $mediatype ) {
+			// handle missing (and BETA) dump files
+			if ( !is_null( $dumpDate ) and !array_key_exists( $format . $compression , $data['dumps'][$dumpDate] ) ) {
+				continue;
 			}
-		}
 
-		$xml->endElement();
+			$id = $data['config']['uri'] . '#' . $distribId . $dumpDate . $format . $compression;
+			array_push( $ids, $id );
+
+			$xml->startElementNS( 'rdf', 'Description', null );
+			$xml->writeAttributeNS( 'rdf', 'about', null, $id );
+
+			$xml->startElementNS( 'rdf', 'type', null );
+			$xml->writeAttributeNS( 'rdf', 'resource', null,
+				'http://www.w3.org/ns/dcat#Distribution' );
+			$xml->endElement();
+
+			$xml->startElementNS( 'dcterms', 'license', null );
+			$xml->writeAttributeNS( 'rdf', 'resource', null,
+				$data['config']["$prefix-info"]['license'] );
+			$xml->endElement();
+
+			if ( is_null( $dumpDate ) ) {
+				$xml->startElementNS( 'dcat', 'accessURL', null );
+				$xml->writeAttributeNS( 'rdf', 'resource', null,
+					$data['config']["$prefix-info"]['accessURL'] );
+				$xml->endElement();
+			} else {
+				dumpDistributionExtras( $xml, $data, $dumpDate, $format . $compression );
+			}
+
+			$xml->writeElementNS( 'dcterms', 'format', null, $mediatype );
+
+			// add description in each language
+			foreach ( $data['i18n'] as $langCode => $langData ) {
+				if ( array_key_exists( "distribution-$prefix-description", $langData ) ) {
+					$formatDescription = $langData["distribution-$prefix-description"];
+					if ( !is_null( $dumpDate ) ) {
+						$formatDescription = str_replace(
+							'$1',
+							$format,
+							$formatDescription
+						);
+						$formatDescription = str_replace(
+							'$2',
+							$compressiontype,
+							$formatDescription
+						);
+					}
+					$xml->startElementNS( 'dcterms', 'description', null );
+					$xml->writeAttributeNS( 'xml', 'lang', null, $langCode );
+					$xml->text( $formatDescription );
+					$xml->endElement();
+				}
+			}
+
+			$xml->endElement();
+		}
 	}
 
 	return $ids;
@@ -584,8 +599,10 @@ function outputXml( array $data ) {
  */
 function scanDump( $dirname, array $data ) {
 	$testStrings = array();
-	foreach ( $data['config']['dump-info']['mediatype'] as $fileEnding => $mediatype ) {
-		$testStrings[$fileEnding] = 'all.' . $fileEnding . '.gz';
+	foreach ( $data['config']['dump-info']['compression'] as $compression => $compressiontype ) {
+		foreach ( $data['config']['dump-info']['mediatype'] as $format => $mediatype ) {
+			$testStrings["$format$compression"] = '-all.' . $format . '.' . $compression;
+		}
 	}
 
 	$dumps = array();
@@ -594,8 +611,9 @@ function scanDump( $dirname, array $data ) {
 	foreach ( glob( $dirname . '/[0-9]*', GLOB_ONLYDIR ) as $subdir ) {
 		// $subdir = testdirNew/20150120
 		$subDump = array();
-		foreach ( glob( $subdir . '/*.gz' ) as $filename ) {
+		foreach ( glob( $subdir . '/*' ) as $filename ) {
 			// match each file against an expected testString
+			#@todo change into one loop
 			foreach ( $testStrings as $fileEnding => $testString ) {
 				if ( substr( $filename, -strlen( $testString ) ) === $testString ) {
 					$info = stat( $filename );
@@ -603,7 +621,8 @@ function scanDump( $dirname, array $data ) {
 					$subDump[$fileEnding] = array(
 						'timestamp' => gmdate( 'Y-m-d', $info['mtime'] ),
 						'byteSize' => $info['size'],
-						'filename' => $filename
+						'filename' => $filename,
+						'compression' => $compression
 					);
 				}
 			}
