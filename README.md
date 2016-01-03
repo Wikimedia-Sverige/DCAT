@@ -102,6 +102,8 @@ Below follows a key by key explanation of the config file.
     *   `accessURL`: URL to the directory where the *.json.gz* files
         reside (`$1` is replaced on the fly by the actual filename),
         e.g. *http://example.org/dumps/$1*
-    *   `mediatype`: (`object`) List of media types. In practice this is
-        always `{"json": "application/json"}` ... for now
+    *   `mediatype`: (`object`) List of media types. e.g.
+        `{"json": "application/json"}`
+    *   `compression`: (`object`) List of compression formats, in the
+        format *name:file-ending* e.g. `{"gzip": "gz"}`
     *   `license`: See ld-info:license above
