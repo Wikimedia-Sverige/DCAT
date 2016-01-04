@@ -47,7 +47,7 @@
         },
         "compression": {
             "gzip": "gz",
-            "bzip": "bz"
+            "bzip2": "bz2"
         },
         "license": "http://creativecommons.org/publicdomain/zero/1.0/"
     }

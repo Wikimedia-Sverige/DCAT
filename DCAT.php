@@ -234,7 +234,7 @@ function writeDistribution( XMLWriter $xml, array $data, $distribId, $prefix, $d
 	$isDump = !is_null( $dumpDate );
 	$allowedMediatypes = $data['config']["$prefix-info"]['mediatype'];
 	$allowedCompressiontypes = array( '' => '' );  // dummy array for non-dumps
-	if ( $isDump ){
+	if ( $isDump ) {
 		$allowedCompressiontypes = $data['config']["$prefix-info"]['compression'];
 	}
 
