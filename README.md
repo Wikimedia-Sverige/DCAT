@@ -1,6 +1,10 @@
 DCAT-AP for Wikibase
 =================
 
+# Note
+This repo stems from the time before the tool was integrated into the Wikimedia dumping infrastructure. The up-to-date repository can be found at [wikimedia/operations-dumps-dcat](https://github.com/wikimedia/operations-dumps-dcat).
+
+---
 A project aimed at generating a [DCAT-AP](https://joinup.ec.europa.eu/system/files/project/c3/22/18/DCAT-AP_Final_v1.00.html)
 document for [Wikibase](http://wikiba.se) installations
 in general and [Wikidata](http://wikidata.org) in particular.
